@@ -31,10 +31,8 @@ class LoginView(APIView):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             tokens = TokenService.get_token_from_username(user)
-            response = JsonResponse(tokens)
-            TokenService.set_token_cookie(response, str(tokens['access_token']))
-            TokenService.set_refresh_token_cookie(response, str(tokens['refresh_token']))
-            return response;
+            response = RequestService.jwt_response_handler(tokens['access_token'], tokens['refresh_token'], user)
+            return RequestService.res(response)
         else:
             ErrorService.validation_error(str(error_message))
 

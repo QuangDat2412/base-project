@@ -13,13 +13,10 @@ class RequestService:
         error_message = _("This user didn't associate with any profile.")
         try:
             data = {
-                "token": token,
+                "access_token": token,
                 "refresh_token": refresh_token,
-                "user_type": "staff" if hasattr(user, "staff") else "",
             }
 
-            if not data["user_type"]:
-                raise ValidationError({"message": error_message})
 
             user.refresh_token_signature = TokenService.get_token_signature(
                 refresh_token
@@ -32,6 +29,33 @@ class RequestService:
         except Exception as e:
             raise ValidationError({"message": error_message}) from e
 
+    @staticmethod
+    def get_grouped_permission(user):
+        ignore_permission_groups = [
+            "logentry",
+            "permission",
+            "contenttype",
+            "token",
+            "tokenproxy",
+            "session",
+            "user",
+            "whitelisttarget",
+            "verif",
+            "veriflog",
+        ]
+        group_ids = user.groups.values_list("id", flat=True)
+        queryset = Permission.objects.all()
+        if user.is_staff:
+            queryset = Permission.objects.filter(group__in=group_ids).distinct()
+        list_item = queryset.values_list("codename", flat=True)
+        result = {}
+        for item in list_item:
+            group = item.split("_")[-1]
+            if group not in ignore_permission_groups:
+                permission = item[: -len(group) - 1]
+                result[group] = result.get(group, []) + [permission]
+        return result
+    
     @staticmethod
     def error_format(data):
         if isinstance(data, str):
